@@ -7,9 +7,9 @@ namespace terrain
 	{
 		public static void Main (string[] args)
 		{
-			River river = new River();
-			river.Draw ();
-			return;
+//			River river = new River();
+//			river.Draw ();
+//			return;
 			
 			//for starters, let's create a 256x256 map.
 			int w = int.Parse(args[0]);
@@ -19,7 +19,9 @@ namespace terrain
 			for (int i = 0; i < w/20; i++)
 				g.DrawSpine ();
 			g.Cleanup ();
+			g.DrawRivers ();
 			g.DrawForest ();
+			g.DrawTowns ();
 			g.Bitmap.Save("test.png");
 		}
 	}

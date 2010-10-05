@@ -18,7 +18,11 @@ namespace terrain
 		Color green = Color.FromArgb(0,200,0);
 		Color darkGreen = Color.FromArgb(0,100,0);
 		Color white = Color.FromArgb(255,255,255);
+		Color town = Color.FromArgb(255,255,0);
 		Color[] colorsToPreserve;
+		Vector2 min, max;
+		
+		List<KeyValuePair<Vector2, Vector2>> rivers = new List<KeyValuePair<Vector2, Vector2>>();
 		
 		Point[] directions = new Point[] { 
 			new Point(-1,-1), new Point(-1,0), new Point(-1,1),
@@ -41,6 +45,8 @@ namespace terrain
 			colorsToPreserve = new Color[]{white, river};
 			this.w = w; 
 			this.h = h;
+			min = new Vector2(0,0);
+			max = new Vector2(w-1,h-1);
 			b = new Bitmap(w,h);
 			g = Graphics.FromImage (b);
 			for (int x = 0; x < w; x++)
@@ -87,11 +93,11 @@ namespace terrain
 				//1 / 200 chance of right river
 				d = r.NextDouble ();
 				if ( d < 0.025 )
-					DrawRiver (x1, y1, perpLeft);
+					rivers.Add ( new KeyValuePair<Vector2, Vector2>(new Vector2 (x1, y1), perpLeft));
 				
 				d = r.NextDouble ();
 				if ( d < 0.025 )
-					DrawRiver (x1, y1, perpRight);
+					rivers.Add ( new KeyValuePair<Vector2, Vector2>(new Vector2 (x1, y1), perpRight));
 			}
 		}		
 		
@@ -102,11 +108,40 @@ namespace terrain
 			return a;
 		}
 		
-		void DrawRiver (int x1, int y1, Vector2 direction)
+		public void DrawRivers ()
+		{
+			Console.WriteLine ("Drawing Rivers");
+			foreach (var kvp in rivers)
+				DrawRiver(kvp.Key, kvp.Value);
+		}
+		
+		public void DrawTowns ()
+		{
+			Console.WriteLine ("Drawing towns");
+			int townSpacing = r.Next(5,20);
+			for (int x = 0; x < w; x++)
+			{
+				for (int y = 0; y < h; y++)
+				{
+					//if square is green, at least 1 river tile adj. and no towns within townSpacing, and 1/3 rand
+					Color c = b.GetPixel(x,y);
+					if (c == green
+					    && NumPixelsInSquareAreColor(x-1,y-1, 3, river) > 0
+					    && NumPixelsInSquareAreColor(x-townSpacing, y-townSpacing, townSpacing * 2, town ) == 0 
+					    && r.Next(2) == 0)
+					{
+						b.SetPixel (x,y,town);
+					}
+				}
+			}
+		}
+		
+		void DrawRiver (Vector2 p, Vector2 direction)
 		{
 			Vector2 currentDirection = direction;
-			List<Point> points = new List<Point>();
-			while (length-- > 0)
+			List<Vector2> points = new List<Vector2>();
+			bool foundSea = false;			
+			while(!foundSea)
 			{
 				float xFactor = ((float)r.NextDouble () - 0.5f);
 				float yFactor = ((float)r.NextDouble () - 0.5f);
@@ -119,15 +154,12 @@ namespace terrain
 				
 				for (int i = 0; i < 5; i++)
 				{
-					p = Vector2.Add(p,currentDirection);
-					Point newP = new Point
-							(Clamp(0,x1 + (int)movement.X, w-5),
-							 Clamp(0,y1 + (int)movement.Y, h-5));
-						Color colorAt = b.GetPixel(newP.X, newP.Y);
-						if( points.Contains (newP) )
-						{
-							break;	
-						}
+					p = Vector2.Clamp(Vector2.Add(p,currentDirection), min, max);
+					if( points.Contains (p))
+					{
+						break;	
+					}
+					Color colorAt = b.GetPixel((int)p.X, (int)p.Y);
 					if (colorAt == blue || colorAt == river)
 					{
 						foundSea = true;
@@ -135,44 +167,9 @@ namespace terrain
 					}
 					else if (colorAt != white )
 					{
-						x1 = newP.X;
-						y1 = newP.Y;
-						b.SetPixel (x1, y1, river);
-						points.Add (newP);
+						b.SetPixel ((int)p.X, (int)p.Y, river);
+						points.Add (p);
 					}
-				}
-			}
-			
-			
-			
-			
-			
-			if ( NumPixelsInSquareAreColor(x1-50, y1-50, 100, river) > 60 )
-				return;
-			//Console.WriteLine ("Drawing river at {0}, {1}, direction: {2},{3}", x1, y1, direction.X, direction.Y);
-			//keep going until the sea
-			bool foundSea = false;
-			int max = 500;
-			Vector2 movement = new Vector2();
-			
-			while(!foundSea && max-- > 0)
-			{
-				//Vector2.Multiply(direction, new Vector2(r.Next(3,5), r.Next(2,10)
-				double d = r.NextDouble ();
-				int dir = 1;
-				d = r.NextDouble ();
-				if ( d < 0.25d )//20% invert.
-					dir = -1;
-				d = r.NextDouble ();
-				movement.X = d > direction.X ? -dir : dir;
-				d = r.NextDouble ();
-				if ( d < 0.25d )//20% invert.
-					dir = -1;
-				d = r.NextDouble ();
-				movement.Y = d > direction.Y ? -dir : dir;
-				for( int i = 0; i < r.Next(2,5); i++)
-				{
-					
 				}
 			}
 		}
