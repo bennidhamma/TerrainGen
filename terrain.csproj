@@ -37,6 +37,10 @@
     <Reference Include="System" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Core" />
+    <Reference Include="OpenTK, Version=1.0.0.201, Culture=neutral, PublicKeyToken=null">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>lib\OpenTK.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />
@@ -46,9 +50,18 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\..\workspaces\opentk-1.0.0-rc1\Source\OpenTK\OpenTK.csproj">
-      <Project>{2C035F6B-0000-0000-0000-000000000000}</Project>
-      <Name>OpenTK</Name>
+    <ProjectReference Include="..\SuperFunCon\EmergeTk\server\emergetk.csproj">
+      <Project>{52E41D18-8F12-430D-B5B5-43C7BBA18F61}</Project>
+      <Name>emergetk</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SuperFunCon\SuperFunCon.csproj">
+      <Project>{EFFBDC39-5B7C-4CEE-9EFF-4A7E5B682261}</Project>
+      <Name>SuperFunCon</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
