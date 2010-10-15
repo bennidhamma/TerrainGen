@@ -23,11 +23,14 @@ namespace terrain
 		Color town = Color.FromArgb (255, 255, 0);
 		Color[] colorsToPreserve;
 		Vector2 min, max;
-		List<KeyValuePair<Vector2, Vector2>> rivers = new List<KeyValuePair<Vector2, Vector2>> ();
+		List<Triple<Vector2>> rivers = new List<Triple<Vector2>> ();
 		Point[] directions = new Point[] { 
 			new Point (-1,-1), new Point (-1,0), new Point (-1,1), 
 			new Point (0,-1), /*new Point(0,0),*/ new Point (0,1), 
 			new Point (1,-1), new Point (1,0), new Point (1,1) };
+		Dictionary<int,List<Point>> riverPaths =new Dictionary<int, List<Point>>();
+		int[,] riverMap = null;
+		Hex[,] hexMap = null;
 
 		public Bitmap Bitmap {
 			get {
@@ -38,16 +41,31 @@ namespace terrain
 			}
 		}
 
+		public int Seed {
+			get {
+				return this.seed;
+			}
+			set {
+				seed = value;
+			}
+		}
+
 		public Genner (int w,int h)
 		{
-			Console.WriteLine ("Random seed: " + seed.ToString ());
-			r = new Random (seed);
-			colorsToPreserve = new Color[]{white, river};
 			this.w = w; 
 			this.h = h;
+			colorsToPreserve = new Color[]{white, river};
 			min = new Vector2 (0,0);
 			max = new Vector2 (w - 1,h - 1);
 			b = new Bitmap (w,h);
+			riverMap = (int[,])Array.CreateInstance(typeof(int), w, h);
+			hexMap = (Hex[,])Array.CreateInstance(typeof(Hex), w, h);
+		}
+		
+		public void Setup ()
+		{
+			Console.WriteLine ("Random seed: " + seed.ToString ());
+			r = new Random (seed);			
 			g = Graphics.FromImage (b);
 			for (int x = 0; x < w; x++) {
 				for (int y = 0; y < h; y++) {
@@ -82,18 +100,20 @@ namespace terrain
 				
 				d = r.NextDouble ();
 				if (d < 0.1d) {
-					DrawLand (x1, y1, r.Next (400, 1000), green);
+					DrawLand (x1, y1, r.Next (200, 600), green);
 				}
 				
 				//1 / 200 chance of left river
 				//1 / 200 chance of right river
 				d = r.NextDouble ();
-				if (d < 0.025)
-					rivers.Add (new KeyValuePair<Vector2, Vector2> (new Vector2 (x1, y1), perpLeft));
-				
-				d = r.NextDouble ();
-				if (d < 0.025)
-					rivers.Add (new KeyValuePair<Vector2, Vector2> (new Vector2 (x1, y1), perpRight));
+				if (d < 0.04)
+				{
+					rivers.Add (new Triple<Vector2> () {
+						X = new Vector2 (x1, y1),
+						Y = perpLeft,
+						Z = perpRight
+					});
+				}
 			}
 		}	
 		
@@ -123,55 +143,169 @@ namespace terrain
 		public void DrawRivers ()
 		{
 			Console.WriteLine ("Drawing Rivers");
-			foreach (var kvp in rivers)
-				DrawRiver (kvp.Key, kvp.Value);
+			foreach (var triple in rivers)
+				DrawRiver (triple.X, triple.Y, triple.Z);
 		}
-
-		public void DrawTowns ()
+		
+		int HowFarUntil (Vector2 start, Vector2 direction, Color color)
 		{
-			Console.WriteLine ("Drawing towns");
-			int townSpacing = r.Next (5, 20);
-			for (int x = 0; x < w; x++) {
-				for (int y = 0; y < h; y++) {
-					//if square is green, at least 1 river tile adj. and no towns within townSpacing, and 1/3 rand
-					Color c = b.GetPixel (x, y);
-					if (c == green
-						&& NumPixelsInSquareAreColor (x - 1, y - 1, 3, river) > 0
-						&& NumPixelsInSquareAreColor (x - townSpacing, y - townSpacing, townSpacing * 2, town) == 0 
-						&& r.Next (2) == 0) 
-					{
-						b.SetPixel (x, y, town);
-					}
-				}
+			for (int i = 0; i < h*2; i++)
+			{
+				start = Vector2.Add (start, direction);
+				if (start.X < 0 || start.X >= w || start.Y < 0 || start.Y >= h)
+					return -1;
+				if (b.GetPixel ((int)start.X, (int)start.Y) == color)
+					return i;
 			}
+			return -1;
 		}
-
-		void DrawRiver (Vector2 p, Vector2 direction)
+		
+		int riverId = 0;
+		void DrawRiver (Vector2 p, Vector2 left, Vector2 right)
 		{
+			int rDist = HowFarUntil (p, right, blue);
+			int lDist = HowFarUntil (p, left, blue);
+			Vector2 direction = rDist > lDist && r.Next (3) != 0 ? left : right;
+			riverId++;
 			Vector2 currentDirection = direction;
-			List<Vector2> points = new List<Vector2> ();
-			bool foundSea = false;			
+			List<Point> points = new List<Point> ();
+			riverPaths[riverId] = points;
+			bool foundSea = false;
 			while (!foundSea) {
 				float xFactor = ((float)r.NextDouble () - 0.5f);
 				float yFactor = ((float)r.NextDouble () - 0.5f);
 				
 				if (r.Next (8) == 0)
 					currentDirection = Approximate (currentDirection, direction, 0.2f); else
-					currentDirection = Vector2.Add (currentDirection, new Vector2 (xFactor,yFactor));			
+				currentDirection = Vector2.Add (currentDirection, new Vector2 (xFactor,yFactor));			
 				currentDirection.Normalize ();
 				
-				for (int i = 0; i < 5; i++) {
+				for (int i = 0; i < 1; i++) {
 					p = Vector2.Clamp (Vector2.Add (p, currentDirection), min, max);
-					if (points.Contains (p)) {
-						break;	
+					Point ip = new Point((int)p.X, (int)p.Y);
+					Color colorAt = b.GetPixel (ip.X, ip.Y);
+					if (points.Contains (ip) || colorAt == white ) {
+						break;	//try to prevent loopbacks.
 					}
-					Color colorAt = b.GetPixel ((int)p.X, (int)p.Y);
-					if (colorAt == blue || colorAt == river) {
+					bool usingFillPoint = false;
+					Point fillPoint = new Point(-10,-10);
+					if (points.Count > 0)
+					{						
+						var lastP = points[points.Count-1];
+						if (lastP.X != ip.X && lastP.Y != ip.Y)
+						{
+							fillPoint = r.Next(2) == 0 ? new Point(lastP.X, ip.Y) : new Point(ip.X, lastP.Y);
+							Console.WriteLine ("filling ? - last: {0}, me: {1}, fill: {2}",
+									lastP, ip, fillPoint);
+							if (! points.Contains (fillPoint))
+							{
+								Console.WriteLine ("filled");
+								usingFillPoint = true;
+							}
+						}
+					}
+					if (usingFillPoint && riverMap[fillPoint.X,fillPoint.Y] > 0)
+					{
+						addRiverPoint (fillPoint, points, riverId, "fill");
+						addRiverPoint (ip, points, riverId, "ip");
 						foundSea = true;
 						break;
-					} else if (colorAt != white) {
-						b.SetPixel ((int)p.X, (int)p.Y, river);
-						points.Add (p);
+					}
+					else if (colorAt == blue || riverMap[ip.X, ip.Y] > 0) {
+						foundSea = true;
+						if (usingFillPoint)
+							addRiverPoint (fillPoint, points, riverId, "fill");
+						addRiverPoint (ip, points, riverId, "ip");
+						break;
+					} 
+					else
+					{
+						Point sea;
+						if (usingFillPoint && FirstPixelInSquareOfColor (fillPoint.X-1, fillPoint.Y-1, 3, blue, out sea))
+						{
+							addRiverPoint (fillPoint, points, riverId, "fill");
+							addRiverPoint (ip, points, riverId, "ip");
+							//get the square that is the blue
+							if (NeedFillPoint (ip, sea, out fillPoint))
+								addRiverPoint (fillPoint, points, riverId, "seaFill");
+							addRiverPoint (sea, points, riverId, "sea");
+							foundSea = true;
+							break;
+						}
+						if (FirstPixelInSquareOfColor(ip.X-1, ip.Y-1, 3, blue, out sea))
+						{
+							//found the sea next door.  let's connect.
+							if (usingFillPoint)
+								addRiverPoint (fillPoint, points, riverId, "fill");
+							addRiverPoint (ip, points, riverId, "ip");
+							//get the square that is the blue
+							if (NeedFillPoint (ip, sea, out fillPoint))
+								addRiverPoint (fillPoint, points, riverId, "seaFill");
+							addRiverPoint (sea, points, riverId, "sea");
+							foundSea = true;
+							break;
+						}
+						if (usingFillPoint)
+							addRiverPoint (fillPoint, points, riverId, "fill");
+						addRiverPoint (ip, points, riverId, "ip");
+					}
+				}
+			}
+		}
+		
+		bool NeedFillPoint (Point a, Point b, out Point c)
+		{
+			c = default(Point);
+			if (a.X != b.X & a.Y != b.Y)
+			{
+				c = r.Next(2) == 0 ? new Point(a.X, b.Y) : new Point(a.X, b.Y);
+				return true;
+			}
+			return false;
+		}
+		
+		void addRiverPoint (Point p, List<Point> list, int riverId, string descr)
+		{
+			Console.WriteLine ("adding point {0}, river: {1} -- {2}", p, riverId, descr);
+			if (! list.Contains (p))
+			{
+				list.Add (p);
+				riverMap[p.X,p.Y] = riverId;
+			}
+			else
+				Console.WriteLine ("already added!");
+		}
+		
+		public void DrawTowns ()
+		{
+			Console.WriteLine ("Drawing towns");
+			for (int x = 0; x < w; x++) {
+				for (int y = 0; y < h; y++) {
+					//if square is green, at least 1 river tile adj. and no towns within townSpacing, and 1/3 rand
+					Color c = b.GetPixel (x, y);
+					float baseProbability = 0.0f;
+					if (c == green)
+					{
+						if (riverMap[x,y] > 0 )
+							continue;
+						int numTownsFar = NumPixelsInSquareAreColor (x - 8, y - 8, 17, town);
+						int numTownsNear = NumPixelsInSquareAreColor (x - 3, y - 3, 7, town);
+						if (numTownsFar > 0) 
+							baseProbability -= 0.4f;
+						if (numTownsNear > 0) 
+							baseProbability -= 1.3f;
+						//if we are near a river, that is good
+						if (NumRiverWithin (x-1, y-1, 3) > 0)
+							baseProbability += 0.3f;
+						//next to ocean is nice too
+						if (NumPixelsInSquareAreColor (x - 1, y - 1, 3, blue) > 0 )
+							baseProbability += 0.3f;
+						//nice to have some forest neaby as well.
+						if (NumPixelsInSquareAreColor (x - 1, y - 1, 3, darkGreen) > 0)
+							baseProbability += 0.1f;
+						
+						if (r.NextDouble () < baseProbability)
+							b.SetPixel (x, y, town);
 					}
 				}
 			}
@@ -235,7 +369,7 @@ namespace terrain
 			for (int x = 0; x < w; x++) {
 				for (int y = 0; y < h; y++) {
 					Color c = b.GetPixel (x, y);
-					if (c != white && NumPixelsInSquareAreColor (x - 3, y - 3, 6, darkGreen) > 16 && c != blue && c != river)
+					if (c != white && NumPixelsInSquareAreColor (x - 3, y - 3, 6, darkGreen) > 16 && c != blue)
 						b.SetPixel (x, y, darkGreen);
 				}
 			}
@@ -286,6 +420,43 @@ namespace terrain
 			return count;			
 		}
 		
+		public bool FirstPixelInSquareOfColor (int x1, int y1, int size, Color ca, out Point result)
+		{
+			int count = 0;
+			if (x1 < 0)
+				x1 = 0;
+			if (y1 < 0)
+				y1 = 0;
+			for (int x = x1; x < x1+size && x < w; x++) {				
+				for (int y = y1; y < y1+size && y < h; y++) {
+					Color cb = b.GetPixel (x, y);
+					if (ca == cb)
+					{
+						result = new Point (x, y);
+						return true;
+					}
+				}
+			}
+			result = new Point(-1,-1);
+			return false;			
+		}
+		
+		public int NumRiverWithin (int x1, int y1, int size)
+		{
+			int count = 0;
+			if (x1 < 0)
+				x1 = 0;
+			if (y1 < 0)
+				y1 = 0;
+			for (int x = x1; x < x1+size && x < w; x++) {				
+				for (int y = y1; y < y1+size && y < h; y++) {
+					if (riverMap[x,y] > 0)
+						count++;
+				}
+			}
+			return count;			
+		}
+		
 		public int NumPixelsIn4DirectionsAreColor(int x, int y, Color c)
 		{
 			int count = 0;
@@ -298,17 +469,17 @@ namespace terrain
 
 		public void SaveToDb ()
 		{
+			Console.WriteLine ("Saving to db");
 			RecordList<Hex> hexes = new RecordList<Hex> ();
 			for (int x = 0; x < w; x++) {
 				for (int y = 0; y < h; y++) {
 					Hex hex = new Hex ();
+					hex.EnsureId ();
 					hex.X = x;
 					hex.Y = y;
 					Color c = b.GetPixel (x, y);
 					if (c == blue)
 						hex.Terrain = TerrainType.Sea; 
-					else if (c == river)
-						hex.Terrain = TerrainType.River; 
 					else if (c == white)
 						hex.Terrain = TerrainType.Mountains;
 					else if (c == darkGreen)
@@ -316,20 +487,65 @@ namespace terrain
 					else if (c == town)
 					{
 						hex.Terrain = TerrainType.Plains;
-						
+						AddTown (hex);
 					}
 					else
 						hex.Terrain = TerrainType.Plains;
 					hexes.Add (hex);
+					hexMap[x,y] = hex;
 				}
 			}
 			
 			//check coastals
 			foreach (Hex h in hexes)
-				if (h.Terrain == TerrainType.River || h.Terrain == TerrainType.Sea)
+				if (h.Terrain == TerrainType.Sea)
 					CheckCoastal (h);
 			
+			cities.Save ();
 			hexes.Save ();
+			foreach (var kvp in riverPaths)
+			{
+				River r = new River();
+				int z = 0;
+				foreach(Point p in kvp.Value)
+				{
+					r.Path.Add (new Triple<int> () {
+						X = p.X,
+						Y = p.Y,
+						Z = z++
+					});
+				}
+				r.Save ();
+				r.Path.Save ();
+				r.SaveRelations("Path");
+			}
+		}
+		
+		public void DrawFinal (string fileName)
+		{
+			//draw rivers in.
+			foreach (var kvp in riverPaths)
+			{
+				foreach (var p in kvp.Value)
+					b.SetPixel(p.X, p.Y, river);
+			}
+			
+			//save file.
+			b.Save (fileName);
+		}
+		
+		IRecordList<City> cities = new RecordList<City>();
+		public void AddTown(Hex h)
+		{
+			int size = (int)Math.Log(r.Next(600));
+			string name = string.Format("Town at {0},{1}", h.X, h.Y);
+			City c = new City () {
+				Size = size,
+				Name = name,
+				Location = h
+			};
+			cities.Add (c);
+			h.City = c;			
 		}
 		
 		public void CheckCoastal (Hex hex )
@@ -341,7 +557,7 @@ namespace terrain
 				if(p.X >= 0 && p.X < w && p.Y >= 0 && p.Y < h)
 				{
 					Color c = b.GetPixel(p.X,p.Y);
-					if (c != blue && c != river)
+					if (c != blue)
 					{
 						land.Add(dir);
 					}

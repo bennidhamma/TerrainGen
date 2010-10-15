@@ -5,12 +5,8 @@ using OpenTK;
 
 namespace terrain
 {
-	public class River
+	public class RiverTest
 	{
-		public River ()
-		{
-		}
-		
 		int w = 512;
 		int h = 512;
 		Bitmap b;
