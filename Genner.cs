@@ -77,11 +77,11 @@ namespace terrain
 		public void DrawSpine ()
 		{
 			Console.WriteLine ("Drawing spine");
-			int x1 = r.Next (50, w - 50);
-			int y1 = r.Next (50, h - 50);
+			int x1 = r.Next (w/10, w - w/10);
+			int y1 = r.Next (h/10, h - h/10);
 			
-			int x2 = r.Next (x1 - 150, x1 + 150);
-			int y2 = r.Next (y1 - 150, y1 + 150);
+			int x2 = r.Next (x1 - w/3, x1 + w/3);
+			int y2 = r.Next (y1 - h/3, y1 + h/3);
 			
 			Vector2 v = new Vector2 (x2 - x1, y2 - y1);
 			Vector2 perpRight = Vector2.Normalize (v.PerpendicularRight);
@@ -90,17 +90,17 @@ namespace terrain
 			while (x1 != x2 && y1 != y2) {
 				//75% chance for each axis moving closer to 2s
 				double d = r.NextDouble ();
-				x1 += (x2 > x1 ? 1 : -1) * (d > 0.45d ? 1 : -1);
+				x1 += (x2 > x1 ? 1 : -1) * (d > 0.4d ? 1 : -1);
 				d = r.NextDouble ();
-				y1 += (y2 > y1 ? 1 : -1) * (d > 0.45d ? 1 : -1);
+				y1 += (y2 > y1 ? 1 : -1) * (d > 0.4d ? 1 : -1);
 				x1 = Clamp (0, x1, w - 5);
 				y1 = Clamp (0, y1, h - 5);
-				//Console.WriteLine ("{0},{1} -> {2}.{3}", x1, y1, x2, y2);
+				Console.WriteLine ("{0},{1} -> {2},{3}", x1, y1, x2, y2);
 				b.SetPixel (x1, y1, white);
 				
 				d = r.NextDouble ();
-				if (d < 0.1d) {
-					DrawLand (x1, y1, r.Next (200, 600), green);
+				if (d < 0.2d) {
+					DrawLand (x1, y1, r.Next (200, 1200), green);
 				}
 				
 				//1 / 200 chance of left river
@@ -333,7 +333,9 @@ namespace terrain
 		}
 
 		public void DrawLand (int cx, int cy, int numTimes, Color land)
-		{			
+		{		
+			//Console.WriteLine ("Drawing land x: {0}, y: {1}, numTimes: {2}, color: {3}",
+			//                   cx, cy,numTimes, land);
 			while (numTimes-- > 0) {
 				double going = r.NextDouble ();
 				if (going > 0.75d && cx > 0) //left
@@ -467,8 +469,16 @@ namespace terrain
 			return count;
 		}
 
-		public void SaveToDb ()
+		public void SaveToDb (string name)
 		{
+			GameState game = new GameState () {
+				Name = name
+			};
+			Map map = new Map ();
+			map.Game = game;
+			map.Save ();
+			game.Save ();
+			
 			Console.WriteLine ("Saving to db");
 			RecordList<Hex> hexes = new RecordList<Hex> ();
 			for (int x = 0; x < w; x++) {
@@ -487,7 +497,7 @@ namespace terrain
 					else if (c == town)
 					{
 						hex.Terrain = TerrainType.Plains;
-						AddTown (hex);
+						AddTown (hex, map);
 					}
 					else
 						hex.Terrain = TerrainType.Plains;
@@ -495,14 +505,17 @@ namespace terrain
 					hexMap[x,y] = hex;
 				}
 			}
-			
+
 			//check coastals
 			foreach (Hex h in hexes)
 				if (h.Terrain == TerrainType.Sea)
 					CheckCoastal (h);
 			
 			cities.Save ();
+			map.Cities = cities;
 			hexes.Save ();
+			map.Hexes = hexes;
+			
 			foreach (var kvp in riverPaths)
 			{
 				River r = new River();
@@ -518,7 +531,9 @@ namespace terrain
 				r.Save ();
 				r.Path.Save ();
 				r.SaveRelations("Path");
+				map.Rivers.Add (r);
 			}
+			
 		}
 		
 		public void DrawFinal (string fileName)
@@ -534,18 +549,53 @@ namespace terrain
 			b.Save (fileName);
 		}
 		
-		IRecordList<City> cities = new RecordList<City>();
-		public void AddTown(Hex h)
+		private List<string> names = new List<string> ();
+		private void SetupNames ()
 		{
-			int size = (int)Math.Log(r.Next(600));
-			string name = string.Format("Town at {0},{1}", h.X, h.Y);
+			DataProvider.DefaultProvider.ExecuteReader("select name from PlaceName order by rand() limit 100;", reader => {
+				string name = (string)reader["Name"];
+				names.Add (name);
+			});
+		}
+		
+		private string GetName ()
+		{
+			if (names.Count == 0)
+				SetupNames ();
+			return names[r.Next (names.Count)];
+		}
+		
+		IRecordList<City> cities = new RecordList<City>();
+		public void AddTown(Hex h, Map map)
+		{
+			int size = (int)Math.Min(1, Math.Log(r.Next(60)));
 			City c = new City () {
 				Size = size,
-				Name = name,
-				Location = h
+				Name = GetName (),
+				Center = h
 			};
 			cities.Add (c);
-			h.City = c;			
+			h.City = c;
+			
+			//first tile associate to location
+			CityTile firstTile = new CityTile() {
+				City = c,
+				Location = h
+			};
+			c.Tiles.Add (firstTile);
+			
+			//for each point of size, add one citytile.
+			for (int i = 1; i < size; i++)
+			{
+				Hex loc = map.SearchNearby (h, 5, p => p.City == null && p.Terrain == TerrainType.Plains);
+				CityTile t = new CityTile () {
+					City = c,
+					Location = loc
+				};
+				c.Tiles.Add (t);
+			}
+			c.Tiles.Save ();
+			c.SaveRelations ("Tiles");
 		}
 		
 		public void CheckCoastal (Hex hex )

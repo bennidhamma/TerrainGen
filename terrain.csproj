@@ -22,7 +22,7 @@
     <PlatformTarget>x86</PlatformTarget>
     <Externalconsole>true</Externalconsole>
     <ConsolePause>false</ConsolePause>
-    <Commandlineparameters>512</Commandlineparameters>
+    <Commandlineparameters>128</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>none</DebugType>
@@ -47,6 +47,7 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Genner.cs" />
     <Compile Include="River.cs" />
+    <Compile Include="Options.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
