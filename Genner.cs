@@ -471,10 +471,16 @@ namespace terrain
 
 		public void SaveToDb (string name)
 		{
-			GameState game = new GameState () {
-				Name = name
+			Map map = new Map () {
+				Height = this.h,
+				Width = this.w
 			};
-			Map map = new Map ();
+			
+			GameState game = new GameState () {
+				Name = name,
+				Map = map
+			};			
+			
 			map.Game = game;
 			map.Save ();
 			game.Save ();
@@ -496,13 +502,27 @@ namespace terrain
 						hex.Terrain = TerrainType.Forest; 
 					else if (c == town)
 					{
-						hex.Terrain = TerrainType.Plains;
-						AddTown (hex, map);
+						hex.Terrain = TerrainType.Plains;						
 					}
 					else
 						hex.Terrain = TerrainType.Plains;
 					hexes.Add (hex);
 					hexMap[x,y] = hex;
+				}
+			}
+			
+			//cities have to be done in a separate pass to account for growth.
+			map.Hexes = hexes;
+			map.EnsureMapIsBuilt (true);
+			for (int x = 0; x < w; x++) 
+			{
+				for (int y = 0; y < h; y++)
+				{
+					Color c = b.GetPixel (x, y);
+					if (c == town)
+					{
+						AddTown (hexMap[x,y], map);
+					}
 				}
 			}
 
@@ -514,7 +534,6 @@ namespace terrain
 			cities.Save ();
 			map.Cities = cities;
 			hexes.Save ();
-			map.Hexes = hexes;
 			
 			foreach (var kvp in riverPaths)
 			{
@@ -562,37 +581,51 @@ namespace terrain
 		{
 			if (names.Count == 0)
 				SetupNames ();
-			return names[r.Next (names.Count)];
+			string name = names[r.Next (names.Count)];
+			names.Remove (name);
+			return name;
 		}
 		
 		IRecordList<City> cities = new RecordList<City>();
 		public void AddTown(Hex h, Map map)
 		{
-			int size = (int)Math.Min(1, Math.Log(r.Next(60)));
+			int size = (int)Math.Max(1, Math.Log(r.Next(60)));
 			City c = new City () {
 				Size = size,
 				Name = GetName (),
 				Center = h
 			};
+			c.EnsureId ();
 			cities.Add (c);
-			h.City = c;
 			
 			//first tile associate to location
 			CityTile firstTile = new CityTile() {
 				City = c,
 				Location = h
 			};
+			h.CityTile = firstTile;
 			c.Tiles.Add (firstTile);
 			
 			//for each point of size, add one citytile.
 			for (int i = 1; i < size; i++)
 			{
-				Hex loc = map.SearchNearby (h, 5, p => p.City == null && p.Terrain == TerrainType.Plains);
+				Hex loc = map.SearchNearby(h, 5, p => p.CityTile == null && p.Terrain == TerrainType.Plains);
+				if (null == loc)
+				{
+					System.Console.Error.WriteLine ("size: {0}, x: {1}, y: {2}", size, h.X, h.Y);
+					//throw new Exception ("Could not find a place nearby for city.");
+					continue;
+				}
 				CityTile t = new CityTile () {
 					City = c,
 					Location = loc
 				};
+				System.Console.WriteLine (1);
 				c.Tiles.Add (t);
+				System.Console.WriteLine (2);
+				loc.CityTile = t;
+				System.Console.WriteLine (3);
+				
 			}
 			c.Tiles.Save ();
 			c.SaveRelations ("Tiles");

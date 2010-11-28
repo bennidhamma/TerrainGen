@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using Mono.Options;
 using System.Collections.Generic;
+using SuperFunCon;
 
 namespace terrain
 {
@@ -56,9 +57,12 @@ namespace terrain
 			g.DrawTowns ();
 			if (saveGame)
 			{
+				Startup.InitializeServices ();
 				g.SaveToDb (gameName);
 			}
 			g.DrawFinal (g.Seed.ToString() + ".png");
+			
+			System.Environment.Exit (0);
 		}
 		
 		private static void ShowHelp (OptionSet options)
