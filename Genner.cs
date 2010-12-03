@@ -478,7 +478,8 @@ namespace terrain
 			
 			GameState game = new GameState () {
 				Name = name,
-				Map = map
+				Map = map,
+				GameIsPersistent = true
 			};			
 			
 			map.Game = game;
@@ -553,6 +554,9 @@ namespace terrain
 				map.Rivers.Add (r);
 			}
 			
+			map.SaveRelations ("Rivers");
+			map.SaveRelations ("Hexes");
+			map.SaveRelations ("Cities");
 		}
 		
 		public void DrawFinal (string fileName)
@@ -620,12 +624,8 @@ namespace terrain
 					City = c,
 					Location = loc
 				};
-				System.Console.WriteLine (1);
 				c.Tiles.Add (t);
-				System.Console.WriteLine (2);
 				loc.CityTile = t;
-				System.Console.WriteLine (3);
-				
 			}
 			c.Tiles.Save ();
 			c.SaveRelations ("Tiles");
