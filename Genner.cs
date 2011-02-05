@@ -479,7 +479,6 @@ namespace terrain
 			GameState game = new GameState () {
 				Name = name,
 				Map = map,
-				GameIsPersistent = true
 			};			
 			
 			map.Game = game;

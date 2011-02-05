@@ -51,18 +51,19 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\SuperFunCon\EmergeTk\server\emergetk.csproj">
-      <Project>{52E41D18-8F12-430D-B5B5-43C7BBA18F61}</Project>
-      <Name>emergetk</Name>
-    </ProjectReference>
     <ProjectReference Include="..\SuperFunCon\SuperFunCon.csproj">
       <Project>{EFFBDC39-5B7C-4CEE-9EFF-4A7E5B682261}</Project>
       <Name>SuperFunCon</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\EmergeTk\server\emergetk.csproj">
+      <Project>{52E41D18-8F12-430D-B5B5-43C7BBA18F61}</Project>
+      <Name>emergetk</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="web.config.sample" />
   </ItemGroup>
 </Project>
