@@ -612,7 +612,7 @@ namespace terrain
 			//for each point of size, add one citytile.
 			for (int i = 1; i < size; i++)
 			{
-				Hex loc = map.SearchNearby(h, 5, p => p.CityTile == null && p.Terrain == TerrainType.Plains);
+				Hex loc = map.SearchNearby(h, 5, MovementType.Ground, p => p.CityTile == null && p.Terrain == TerrainType.Plains);
 				if (null == loc)
 				{
 					System.Console.Error.WriteLine ("size: {0}, x: {1}, y: {2}", size, h.X, h.Y);
