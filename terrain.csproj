@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="3.5" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>terrain</RootNamespace>
     <AssemblyName>terrain</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <DebugSymbols>true</DebugSymbols>
@@ -51,13 +51,13 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\SuperFunCon\SuperFunCon.csproj">
-      <Project>{EFFBDC39-5B7C-4CEE-9EFF-4A7E5B682261}</Project>
-      <Name>SuperFunCon</Name>
-    </ProjectReference>
     <ProjectReference Include="..\EmergeTk\server\emergetk.csproj">
       <Project>{52E41D18-8F12-430D-B5B5-43C7BBA18F61}</Project>
       <Name>emergetk</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SuperFunCon.csproj">
+      <Project>{EFFBDC39-5B7C-4CEE-9EFF-4A7E5B682261}</Project>
+      <Name>SuperFunCon</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
