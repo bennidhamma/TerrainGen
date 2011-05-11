@@ -514,25 +514,12 @@ namespace terrain
 			//cities have to be done in a separate pass to account for growth.
 			map.Hexes = hexes;
 			map.EnsureMapIsBuilt (true);
-			for (int x = 0; x < w; x++) 
-			{
-				for (int y = 0; y < h; y++)
-				{
-					Color c = b.GetPixel (x, y);
-					if (c == town)
-					{
-						AddTown (hexMap[x,y], map);
-					}
-				}
-			}
 
 			//check coastals
 			foreach (Hex h in hexes)
 				if (h.Terrain == TerrainType.Sea)
 					CheckCoastal (h);
 			
-			cities.Save ();
-			map.Cities = cities;
 			hexes.Save ();
 			
 			foreach (var kvp in riverPaths)
@@ -555,7 +542,6 @@ namespace terrain
 			
 			map.SaveRelations ("Rivers");
 			map.SaveRelations ("Hexes");
-			map.SaveRelations ("Cities");
 		}
 		
 		public void DrawFinal (string fileName)
@@ -569,65 +555,6 @@ namespace terrain
 			
 			//save file.
 			b.Save (fileName);
-		}
-		
-		private List<string> names = new List<string> ();
-		private void SetupNames ()
-		{
-			DataProvider.DefaultProvider.ExecuteReader("select name from PlaceName order by rand() limit 100;", reader => {
-				string name = (string)reader["Name"];
-				names.Add (name);
-			});
-		}
-		
-		private string GetName ()
-		{
-			if (names.Count == 0)
-				SetupNames ();
-			string name = names[r.Next (names.Count)];
-			names.Remove (name);
-			return name;
-		}
-		
-		IRecordList<City> cities = new RecordList<City>();
-		public void AddTown(Hex h, Map map)
-		{
-			int size = (int)Math.Max(1, Math.Log(r.Next(60)));
-			City c = new City () {
-				Size = size,
-				Name = GetName (),
-				Center = h
-			};
-			c.EnsureId ();
-			cities.Add (c);
-			
-			//first tile associate to location
-			CityTile firstTile = new CityTile() {
-				City = c,
-				Location = h
-			};
-			h.CityTile = firstTile;
-			c.Tiles.Add (firstTile);
-			
-			//for each point of size, add one citytile.
-			for (int i = 1; i < size; i++)
-			{
-				Hex loc = map.SearchNearby(h, 5, MovementType.Ground, p => p.CityTile == null && p.Terrain == TerrainType.Plains);
-				if (null == loc)
-				{
-					System.Console.Error.WriteLine ("size: {0}, x: {1}, y: {2}", size, h.X, h.Y);
-					//throw new Exception ("Could not find a place nearby for city.");
-					continue;
-				}
-				CityTile t = new CityTile () {
-					City = c,
-					Location = loc
-				};
-				c.Tiles.Add (t);
-				loc.CityTile = t;
-			}
-			c.Tiles.Save ();
-			c.SaveRelations ("Tiles");
 		}
 		
 		public void CheckCoastal (Hex hex )

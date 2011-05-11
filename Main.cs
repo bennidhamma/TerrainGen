@@ -11,6 +11,7 @@ namespace terrain
 		public static void Main (string[] args)
 		{
 			int length = 256;
+			int spineFactor = 25;
 			string gameName = null;
 			int seed = (int)DateTime.Now.Ticks;
 			bool saveGame = false;
@@ -20,6 +21,7 @@ namespace terrain
 				{"l|length:", "Side length of map (default 256)", s => length = int.Parse(s)},
 				{"n|name:", "The name of the game to create.  Required if persisting.", s => gameName = s},
 				{"s|seed:", "Random seed", s => seed = int.Parse(s)},
+				{"f|spineFactor:", "Spine Factor (lower is more)", s => spineFactor = int.Parse(s)},
 				{"p|persist", "Persist to db (default false)", s => saveGame = true},
 				{"h|help", "Show help", s => showHelp = true}
 			};
@@ -48,13 +50,13 @@ namespace terrain
 			g.Setup ();
 			//for (int i = 0; i < 50; i++)
 			//	g.DrawLand ();
-			for (int i = 0; i < length/25; i++)
+			for (int i = 0; i < length/spineFactor; i++)
 				g.DrawSpine ();
 			g.SmoothMountains ();
 			g.Cleanup ();
 			g.DrawRivers ();
 			g.DrawForest ();
-			g.DrawTowns ();
+			//g.DrawTowns ();
 			if (saveGame)
 			{
 				Startup.InitializeServices ();
