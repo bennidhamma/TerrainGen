@@ -5,6 +5,7 @@ using OpenTK;
 using System.Collections.Generic;
 using EmergeTk.Model;
 using SuperFunCon;
+using EmergeTk.Model.Providers;
 
 namespace terrain
 {
@@ -471,6 +472,8 @@ namespace terrain
 
 		public void SaveToDb (string name)
 		{
+			Console.WriteLine ("Saving to db");
+
 			Map map = new Map () {
 				Height = this.h,
 				Width = this.w
@@ -479,13 +482,28 @@ namespace terrain
 			GameState game = new GameState () {
 				Name = name,
 				Map = map,
-			};			
-			
+			};
+
+			string[] deleteTables = new string[] {
+				"gamestate",
+				"map",
+				"hex",
+				"hexresource",
+				"map_cities",
+				"map_rivers",
+				"map_hexes",
+				"hex_edges",
+				"hex_effects",
+				"kingdom"
+			};
+
+			foreach (string deleteTable in deleteTables)
+				MySqlProvider.Provider.ExecuteNonQuery ("truncate " + deleteTable + ";");
+
 			map.Game = game;
 			map.Save ();
 			game.Save ();
-			
-			Console.WriteLine ("Saving to db");
+
 			RecordList<Hex> hexes = new RecordList<Hex> ();
 			for (int x = 0; x < w; x++) {
 				for (int y = 0; y < h; y++) {
